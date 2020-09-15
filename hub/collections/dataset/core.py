@@ -7,6 +7,7 @@ import dask
 import fsspec
 import numpy as np
 import traceback
+from tqdm import tqdm
 from gcsfs.core import GCSFileSystem
 
 from hub.client.hub_control import HubControlClient
@@ -453,36 +454,43 @@ class Dataset:
         collected = {el: None for el in self._tensors.keys()}
         collected_offset = {el: 0 for el in collected}
         step = worker_count * chunksize
-        for i in range(0, cnt, step):
-            batch_count = min(step, cnt - i)
-            lasttime = True if i + step >= cnt else False
-            persisted = client.persist(
-                [self._tensors[key]._array[i : i + batch_count] for key in collected]
-            )
-            persisted = {key: persisted[j] for j, key in enumerate(collected)}
-            tasks = []
-            for el, arr in persisted.items():
-                if collected[el] is None:
-                    collected[el] = arr
+        print(f"Storing data in chunks of {chunksize} items")
+        with tqdm(total=70000,unit="items") as pbar:
+            for i in range(0, cnt, step):
+                batch_count = min(step, cnt - i)
+                lasttime = True if i + step >= cnt else False
+                persisted = client.persist(
+                    [self._tensors[key]._array[i : i + batch_count] for key in collected]
+                )
+                persisted = {key: persisted[j] for j, key in enumerate(collected)}
+                tasks = []
+                for el, arr in persisted.items():
+                    if collected[el] is None:
+                        collected[el] = arr
+                    else:
+                        collected[el] = _dask_concat([collected[el], arr])
+                    c = collected[el]
+                    chunksize_ = self._tensors[el].chunksize
+                    codec = codec_from_name(self._tensors[el].dcompress)
+                    if len(c) >= chunksize_ or lasttime:
+                        jcnt = len(c) - len(c) % chunksize_ if not lasttime else len(c)
+                        for j in range(0, jcnt, chunksize_):
+                            tasks += [
+                                dask.delayed(_numpy_saver)(
+                                    fs,
+                                    f"{path}/{el}/{collected_offset[el] + j}.npy",
+                                    collected[el][j : j + chunksize_],
+                                    codec,
+                                )
+                            ]
+                        collected_offset[el] += jcnt
+                        collected[el] = collected[el][jcnt:]
+                client.gather(client.compute(tasks))
+                if lasttime:
+                    pbar.update(cnt%step)
                 else:
-                    collected[el] = _dask_concat([collected[el], arr])
-                c = collected[el]
-                chunksize_ = self._tensors[el].chunksize
-                codec = codec_from_name(self._tensors[el].dcompress)
-                if len(c) >= chunksize_ or lasttime:
-                    jcnt = len(c) - len(c) % chunksize_ if not lasttime else len(c)
-                    for j in range(0, jcnt, chunksize_):
-                        tasks += [
-                            dask.delayed(_numpy_saver)(
-                                fs,
-                                f"{path}/{el}/{collected_offset[el] + j}.npy",
-                                collected[el][j : j + chunksize_],
-                                codec,
-                            )
-                        ]
-                    collected_offset[el] += jcnt
-                    collected[el] = collected[el][jcnt:]
-            client.gather(client.compute(tasks))
+                    pbar.update(step)
+                
         count = set(collected_offset.values())
         assert (
             len(count) == 1
