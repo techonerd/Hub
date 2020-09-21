@@ -455,7 +455,7 @@ class Dataset:
         collected_offset = {el: 0 for el in collected}
         step = worker_count * chunksize
         print(f"Storing data in chunks of {chunksize} items")
-        with tqdm(total=70000,unit="items") as pbar:
+        with tqdm(total=cnt,unit="items") as pbar:
             for i in range(0, cnt, step):
                 batch_count = min(step, cnt - i)
                 lasttime = True if i + step >= cnt else False
@@ -486,7 +486,7 @@ class Dataset:
                         collected_offset[el] += jcnt
                         collected[el] = collected[el][jcnt:]
                 client.gather(client.compute(tasks))
-                if lasttime:
+                if lasttime and cnt%step!=0:
                     pbar.update(cnt%step)
                 else:
                     pbar.update(step)
