@@ -103,6 +103,8 @@ class DynamicTensor:
             if item[0] is not None:
                 assert item[0] == item[1]
 
+        self.shape_dict = {}
+
     def __getitem__(self, slice_):
         """Gets a slice or slices from tensor"""
         if not isinstance(slice_, abc.Iterable):
@@ -118,6 +120,35 @@ class DynamicTensor:
         slice_ = self._get_slice(slice_, real_shapes)
         return self._storage_tensor[slice_]
 
+    def get_shape(self, slice_):
+        """Gets the shape of the slice from tensor"""
+        if slice_[0] not in self.shape_dict.keys():
+            return [0] * (len(self.max_shape) - 1)
+        else:
+            ls = []
+            j = 0
+            for item in slice_[1:]:
+                if isinstance(item, slice):
+                    ls += [item.stop - item.start]
+                j += 1
+            ls += self.shape_dict[slice_[0]][j:]
+        return ls
+
+    def set_shape(self, slice_, value):
+        if isinstance(slice_[0], int):
+            ls = list(value.shape)
+            m = []
+            j = 0
+            for i in range(1, len(slice_)):
+                m.append(0)
+                if isinstance(slice_[i], slice):
+                    j += 1
+            m += ls[j:]
+            if slice_[0] not in self.shape_dict.keys():
+                self.shape_dict[slice_[0]] = m
+            else:
+                self.shape_dict[slice_[0]] = list(np.maximum(self.shape_dict[slice_[0]], m))
+
     def __setitem__(self, slice_, value):
         """Sets a slice or slices with a value"""
         if not isinstance(slice_, abc.Iterable):
@@ -131,10 +162,11 @@ class DynamicTensor:
                     real_shapes[r] = value.shape[i - len(slice_) + ranged_slice_count]
                 else:
                     real_shapes[r] = max(real_shapes[r], self._get_slice_upper_boundary(slice_[i]))
+        self.set_shape(slice_, value)
         slice_ += [slice(0, None, 1) for i in self.max_shape[len(slice_) :]]
         slice_ = self._get_slice(slice_, real_shapes)
         self._storage_tensor[slice_] = value
-        if real_shapes is not None:  
+        if real_shapes is not None:
             self._dynamic_tensor[slice_[0]] = real_shapes
 
     def _get_slice(self, slice_, real_shapes):
