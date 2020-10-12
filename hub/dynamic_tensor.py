@@ -123,7 +123,7 @@ class DynamicTensor:
     def get_shape(self, slice_):
         """Gets the shape of the slice from tensor"""
         if slice_[0] not in self.shape_dict.keys():
-            return [0] * (len(self.max_shape) - 1)
+            return tuple([0] * (len(self.max_shape) - 1))
         else:
             final_shape = []
             shape_offset = 0
@@ -132,7 +132,7 @@ class DynamicTensor:
                     final_shape += [item.stop - item.start]
                 shape_offset += 1
             final_shape += self.shape_dict[slice_[0]][shape_offset:]
-        return final_shape
+        return tuple(final_shape)
 
     def set_shape(self, slice_, value):
         if isinstance(slice_[0], int):

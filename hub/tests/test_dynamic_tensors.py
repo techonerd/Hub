@@ -70,6 +70,26 @@ def test_dynamic_tensor_4():
     t[0, 6:8] = np.ones((2, 20, 30), dtype="int32")
     assert (t[0, 6:8] == np.ones((2, 20, 30), dtype="int32")).all()
 
+# TODO: Uncomment and get it working, this should throw error
+# def test_dynamic_tensor_get_shape():
+#     t = DynamicTensor(
+#         "./data/test/test_dynamic_tensor_5",
+#         mode="w",
+#         shape=(5, None, None, None),
+#         max_shape=(5, 100, 100, 100),
+#         dtype="int32",
+#     )
+
+#     t[0] = np.ones((30, 20, 40))
+#     assert t[0].shape == t.get_shape([0])
+#     t[0, 3] = 2 * np.ones((30, 30))
+#     assert t[0].shape == t.get_shape([0])
+#     assert t[0, 3].shape == t.get_shape([0, 3])
+#     t[0, 5, 7] = 3 * np.ones((60))
+#     assert t[0].shape == t.get_shape([0])
+#     assert t[0, 3].shape == t.get_shape([0, 3])
+#     assert t[0, 5].shape == t.get_shape([0, 5])
+
 
 if __name__ == "__main__":
-    test_dynamic_tensor_shapes()
+    test_dynamic_tensor_get_shape()
