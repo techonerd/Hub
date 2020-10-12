@@ -125,29 +125,29 @@ class DynamicTensor:
         if slice_[0] not in self.shape_dict.keys():
             return [0] * (len(self.max_shape) - 1)
         else:
-            ls = []
-            j = 0
+            final_shape = []
+            shape_offset = 0
             for item in slice_[1:]:
                 if isinstance(item, slice):
-                    ls += [item.stop - item.start]
-                j += 1
-            ls += self.shape_dict[slice_[0]][j:]
-        return ls
+                    final_shape += [item.stop - item.start]
+                shape_offset += 1
+            final_shape += self.shape_dict[slice_[0]][shape_offset:]
+        return final_shape
 
     def set_shape(self, slice_, value):
         if isinstance(slice_[0], int):
-            ls = list(value.shape)
-            m = []
-            j = 0
+            value_shape = list(value.shape)
+            new_shape = []
+            shape_offset = 0
             for i in range(1, len(slice_)):
-                m.append(0)
+                new_shape.append(0)
                 if isinstance(slice_[i], slice):
-                    j += 1
-            m += ls[j:]
+                    shape_offset += 1
+            new_shape += value_shape[shape_offset:]
             if slice_[0] not in self.shape_dict.keys():
-                self.shape_dict[slice_[0]] = m
+                self.shape_dict[slice_[0]] = new_shape
             else:
-                self.shape_dict[slice_[0]] = list(np.maximum(self.shape_dict[slice_[0]], m))
+                self.shape_dict[slice_[0]] = list(np.maximum(self.shape_dict[slice_[0]], new_shape))
 
     def __setitem__(self, slice_, value):
         """Sets a slice or slices with a value"""
