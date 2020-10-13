@@ -103,8 +103,6 @@ class DynamicTensor:
             if item[0] is not None:
                 assert item[0] == item[1]
 
-        self.shape_dict = {}
-
     def __getitem__(self, slice_):
         """Gets a slice or slices from tensor"""
         if not isinstance(slice_, abc.Iterable):
@@ -122,21 +120,22 @@ class DynamicTensor:
 
     def get_shape(self, slice_):
         """Gets the shape of the slice from tensor"""
-        if slice_[0] not in self.shape_dict.keys():
-            return tuple([0] * (len(self.max_shape) - 1))
-        else:
-            final_shape = []
-            shape_offset = 0
-            for item in slice_[1:]:
-                if isinstance(item, slice):
-                    final_shape += [item.stop - item.start]
-                shape_offset += 1
-            final_shape += self.shape_dict[slice_[0]][shape_offset:]
+        final_shape = []
+        shape_offset = 0
+        for item in slice_[1:]:
+            if isinstance(item, slice):
+                final_shape += [item.stop - item.start]
+            shape_offset += 1
+        final_shape += list(self._dynamic_tensor[slice_[0]][shape_offset:])
         return tuple(final_shape)
 
     def set_shape(self, slice_, value):
+        """Sets the shape of the slice of tensor"""
         if isinstance(slice_[0], int):
-            value_shape = list(value.shape)
+            if isinstance(value, np.ndarray):
+                value_shape = list(value.shape)
+            else:
+                value_shape = [1]
             new_shape = []
             shape_offset = 0
             for i in range(1, len(slice_)):
@@ -144,10 +143,7 @@ class DynamicTensor:
                 if isinstance(slice_[i], slice):
                     shape_offset += 1
             new_shape += value_shape[shape_offset:]
-            if slice_[0] not in self.shape_dict.keys():
-                self.shape_dict[slice_[0]] = new_shape
-            else:
-                self.shape_dict[slice_[0]] = list(np.maximum(self.shape_dict[slice_[0]], new_shape))
+            self._dynamic_tensor[slice_[0]] = list(np.maximum(self._dynamic_tensor[slice_[0]], new_shape))
 
     def __setitem__(self, slice_, value):
         """Sets a slice or slices with a value"""
