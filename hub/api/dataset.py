@@ -1,10 +1,11 @@
-from hub.features.features import Primitive
+from hub.features.features import Primitive, Tensor, FeatureDict, FeatureConnector, featurify, FlatTensor
 from typing import Tuple
 import posixpath
 
 # import fsspec
 
-from hub.features import featurify, FeatureConnector, FlatTensor
+# import tensorflow as tf
+import tensorflow_datasets as tfds
 # from hub.store.storage_tensor import StorageTensor
 from hub.api.tensorview import TensorView
 from hub.api.datasetview import DatasetView
@@ -18,6 +19,7 @@ import hub.dynamic_tensor as dynamic_tensor
 import hub.utils as utils
 from hub.exceptions import OverwriteIsNotSafeException
 from hub.utils import MetaStorage
+import tensorflow as tf
 
 DynamicTensor = dynamic_tensor.DynamicTensor
 MetaStorage = utils.MetaStorage
@@ -208,6 +210,45 @@ class Dataset:
 
         else:
             raise TypeError("type {} isn't supported in dataset slicing".format(type(slice_)))
+
+    def to_tensorflow(self):
+        def tf_gen():
+            for index in range(self.shape[0]):
+                d = {}
+                for key in self._tensors.keys():
+                    split_key = key.split("/")
+                    cur = d
+                    for i in range(1, len(split_key) - 1):
+                        if split_key[i] in cur.keys():
+                            cur = cur[split_key[i]]
+                        else:
+                            cur[split_key[i]] = {}
+                            cur = cur[split_key[i]]
+                    cur[split_key[-1]] = self._tensors[key][index]
+                yield(d)
+
+        def dict_to_tf(my_dtype):
+            d = {}
+            for k, v in my_dtype.dict_.items():
+                d[k] = dtype_to_tensorflow(v)
+            return d
+
+        def tensor_to_tf(my_dtype):
+            return tfds.features.Tensor(shape=my_dtype.shape, dtype=dtype_to_tensorflow(my_dtype.dtype))
+
+        def dtype_to_tensorflow(my_dtype):
+            if isinstance(my_dtype, FeatureDict):
+                return dict_to_tf(my_dtype)
+            elif isinstance(my_dtype, Tensor):
+                return tensor_to_tf(my_dtype)
+            elif isinstance(my_dtype, Primitive):
+                return my_dtype._dtype
+
+        output_types = dtype_to_tensorflow(self.dtype)
+        return tf.data.Dataset.from_generator(
+            tf_gen,
+            output_types=output_types,
+        )
 
     def __exit__(self, type, value, traceback):
         raise NotImplementedError()
