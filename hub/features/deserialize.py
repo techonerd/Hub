@@ -95,7 +95,7 @@ def deserialize(inp):
                 max_shape=inp["max_shape"],
                 chunks=inp["chunks"],
             )
-        elif inp["type"] == "Video":
-            return Video()
+        # elif inp["type"] == "Video":
+        #     return Video()
     else:
         return inp
