@@ -20,15 +20,6 @@ import hub.utils as utils
 from hub.exceptions import OverwriteIsNotSafeException
 from hub.utils import MetaStorage
 import tensorflow as tf
-from hub.features.image import Image
-from hub.features.class_label import ClassLabel
-from hub.features.polygon import Polygon
-from hub.features.audio import Audio
-from hub.features.bbox import BBox
-from hub.features.mask import Mask
-from hub.features.segmentation import Segmentation
-from hub.features.sequence import Sequence
-from hub.features.video import Video
 DynamicTensor = dynamic_tensor.DynamicTensor
 MetaStorage = utils.MetaStorage
 
@@ -238,72 +229,16 @@ class Dataset:
         def dict_to_tf(my_dtype):
             d = {}
             for k, v in my_dtype.dict_.items():
-                d[k] = dtype_to_tensorflow(v)
+                d[k] = dtype_to_tf(v)
             return d
 
         def tensor_to_tf(my_dtype):
-            if isinstance(my_dtype, Image):
-                return tfds.features.Image(
-                    shape=my_dtype.shape,
-                    dtype=dtype_to_tensorflow(my_dtype.dtype),
-                    encoding_format=my_dtype.encoding_format,
-                    # channels=my_dtype.channels
-                )
-            elif isinstance(my_dtype, ClassLabel):
-                if hasattr(my_dtype, "_num_classes"):
-                    return tfds.features.ClassLabel(
-                        num_classes=my_dtype._num_classes,
-                    )
-                else:
-                    return tfds.features.ClassLabel(
-                        names=my_dtype.names,
-                    )
-            elif isinstance(my_dtype, Polygon):
-                return tfds.features.Polygon(
-                    shape=my_dtype.shape
-                )
-            elif isinstance(my_dtype, Audio):
-                return tfds.features.Audio(
-                    shape=my_dtype.shape,
-                    dtype=dtype_to_tensorflow(my_dtype.dtype),
-                    file_format=my_dtype.file_format,
-                    sample_rate=my_dtype.sample_rate
-                )
-            elif isinstance(my_dtype, BBox):
-                return tfds.features.BBox(
-                    dtype=dtype_to_tensorflow(my_dtype.dtype)
-                )
-            elif isinstance(my_dtype, Mask):
-                return tfds.features.Mask(
-                    shape=my_dtype.shape,
-                    dtype=dtype_to_tensorflow(my_dtype.dtype)
-                )
-            elif isinstance(my_dtype, Segmentation):
-                class_labels = my_dtype.class_labels
-                if hasattr(class_labels, '_num_classes'):
-                    return tfds.features.Segmentation(
-                        shape=my_dtype.shape,
-                        dtype=dtype_to_tensorflow(my_dtype.dtype),
-                        num_classes=class_labels._num_classes,
-                    )
-                else:
-                    return tfds.features.Segmentation(
-                        shape=my_dtype.shape,
-                        dtype=dtype_to_tensorflow(my_dtype.dtype),
-                        names=class_labels.names,
-                    )
-            elif isinstance(my_dtype, Sequence):
-                return tfds.features.Sequence(
-                    tfds.features.Tensor(shape=(None,), dtype=dtype_to_tensorflow(my_dtype.dtype)),
-                    length=my_dtype.shape[0],
-                )
-
             return tfds.features.Tensor(
                 shape=my_dtype.shape,
-                dtype=dtype_to_tensorflow(my_dtype.dtype)
+                dtype=dtype_to_tf(my_dtype.dtype)
             )
 
-        def dtype_to_tensorflow(my_dtype):
+        def dtype_to_tf(my_dtype):
             if isinstance(my_dtype, FeatureDict):
                 return dict_to_tf(my_dtype)
             elif isinstance(my_dtype, Tensor):
@@ -311,7 +246,7 @@ class Dataset:
             elif isinstance(my_dtype, Primitive):
                 return str(my_dtype._dtype)
 
-        output_types = dtype_to_tensorflow(self.dtype)
+        output_types = dtype_to_tf(self.dtype)
         return tf.data.Dataset.from_generator(
             tf_gen,
             output_types=output_types,
